@@ -12,4 +12,4 @@ UNIT = 16
 
 # Constantes para el movimiento de Mario
 VELOCITY = 5
-JUMP_HEIGHT = 6
+JUMP_HEIGHT = 4.5

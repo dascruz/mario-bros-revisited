@@ -4,6 +4,9 @@
 import random, pyxel
 import constantes as c
 
+# Variable global utilizada para el movimiento de la cámara por el nivel
+x_offset = 0
+
 
 # Clase principal que heredan todos los objetos gráficos del juego
 class Sprite:
@@ -33,7 +36,12 @@ class Mario(Sprite):
   def move(self):
     # Lógica para el movimiento de Mario, comprobando que no se sale de los límites de la pantalla
     if pyxel.btn(pyxel.KEY_RIGHT) and self.x < (c.BOARD_WIDTH - self.w):
-      self.x = min(self.x + 2, c.BOARD_WIDTH - self.w)
+      if self.x < (c.BOARD_WIDTH / 2 - self.w):
+        self.x = min(self.x + 2, c.BOARD_WIDTH - self.w)
+      else:
+       global x_offset
+       x_offset += 2
+
     elif pyxel.btn(pyxel.KEY_LEFT) and self.x > 0:
       self.x = max(self.x - 2, 0)
     
@@ -44,7 +52,7 @@ class Mario(Sprite):
     else: 
       if self.jumpCount >= -c.JUMP_HEIGHT:
         self.y -= (self.jumpCount * abs(self.jumpCount)) * 0.5
-        self.jumpCount -= 0.5
+        self.jumpCount -= 0.25
       else:
         self.jumpCount = c.JUMP_HEIGHT
         self.isJump = False
@@ -56,8 +64,8 @@ class Suelo(Sprite):
 
   # Método para rellenar la pantalla con bloques de suelo
   def generar_suelo(self):
-    self.suelo1 = [(i * c.UNIT, int(c.BOARD_HEIGHT - c.UNIT * 1.5)) for i in range(c.UNIT * 4)]
-    self.suelo2 = [(i * c.UNIT, int(c.BOARD_HEIGHT - c.UNIT * 0.5)) for i in range(c.UNIT * 4)]
+    self.suelo1 = [(i * c.UNIT - x_offset, int(c.BOARD_HEIGHT - c.UNIT * 1.5)) for i in range(c.UNIT * 4)]
+    self.suelo2 = [(i * c.UNIT - x_offset, int(c.BOARD_HEIGHT - c.UNIT * 0.5)) for i in range(c.UNIT * 4)]
 
     for location in self.suelo1:
       suelo = Suelo(location)
@@ -66,6 +74,22 @@ class Suelo(Sprite):
     for location in self.suelo2:
       suelo = Suelo(location)
       suelo.draw()
+
+
+class Bloque(Sprite):
+  def __init__(self, location):
+    super().__init__(location, img_bank=0, uv=(16, 0), colkey=-1)
+
+  # Método para rellenar la pantalla con bloques de suelo
+  def generar_bloques(self):
+    altura = int(c.BOARD_HEIGHT - c.UNIT * 5.5)
+    self.bloques = [(c.UNIT * 17 - x_offset, altura), (c.UNIT * 20 - x_offset, altura),
+                    (c.UNIT * 21 - x_offset, altura), (c.UNIT * 22 - x_offset, altura),
+                    (c.UNIT * 23 - x_offset, altura), (c.UNIT * 24 - x_offset, altura)]
+
+    for location in self.bloques:
+      bloque = Bloque(location)
+      bloque.draw()
 
 class Tuberia(Sprite):
   def __init__():

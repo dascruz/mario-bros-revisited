@@ -31,5 +31,6 @@ class Board:
 
     # Dibujamos el suelo
     clases.Suelo.generar_suelo(self)
+    clases.Bloque.generar_bloques(self)
 
 Board()
