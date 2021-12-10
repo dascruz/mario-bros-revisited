@@ -1,3 +1,6 @@
+""" Archivo principal que ejecuta el juego
+"""
+
 import pyxel, random
 import clases
 import constantes as c
@@ -10,22 +13,23 @@ class Board:
     pyxel.load("assets/mario.pyxres")
 
     self.mario = clases.Mario(location=(c.UNIT * 3, c.BOARD_HEIGHT - int(c.UNIT * 2.5)))
-    
-    
 
     pyxel.run(self.update, self.draw)
 
   def update(self):
     if pyxel.btnp(pyxel.KEY_Q):
       pyxel.quit()
-    elif pyxel.btn(pyxel.KEY_RIGHT):
-      self.mario.move('right')
-    elif pyxel.btn(pyxel.KEY_LEFT):
-      self.mario.move('left')
+    
+    self.mario.move()
 
   def draw(self):
+    # Rellenamos la pantalla de color azul
     pyxel.cls(12)
+
+    # Dibujamos a Mario
     self.mario.draw()
+
+    # Dibujamos el suelo
     clases.Suelo.generar_suelo(self)
 
 Board()
