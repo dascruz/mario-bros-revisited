@@ -1,7 +1,7 @@
 """ Archivo que contiene todos los objetos a usar en el videojuego
 """
 
-import random, pyxel
+import pyxel
 import constantes as c
 
 # Variable global utilizada para el movimiento de la cámara por el nivel
@@ -10,7 +10,8 @@ x_offset = 0
 
 # Clase principal que heredan todos los objetos gráficos del juego
 class Sprite:
-  def __init__(self, location: tuple, img_bank: int, uv: tuple, size=(c.UNIT, c.UNIT), colkey=0):
+  # Inicializamos la posición y cargamos el sprite correspondiente del banco de imágenes
+  def __init__(self, location, img_bank: int, uv: tuple, size=(c.UNIT, c.UNIT), colkey=0):
     self.x = location[0]
     self.y = location[1]
     self.img_bank = img_bank
@@ -22,7 +23,7 @@ class Sprite:
   
   # Método para dibujar en patalla el sprite
   def draw(self):
-    pyxel.blt(self.x, self.y, self.img_bank, self.u, self.v,
+    pyxel.blt(self.x - x_offset, self.y, self.img_bank, self.u, self.v,
               self.w, self.h, self.colkey)
 
 
@@ -35,15 +36,15 @@ class Mario(Sprite):
   
   def move(self):
     # Lógica para el movimiento de Mario, comprobando que no se sale de los límites de la pantalla
-    if pyxel.btn(pyxel.KEY_RIGHT) and self.x < (c.BOARD_WIDTH - self.w):
-      if self.x < (c.BOARD_WIDTH / 2 - self.w):
-        self.x = min(self.x + 2, c.BOARD_WIDTH - self.w)
-      else:
-       global x_offset
-       x_offset += 2
+    global x_offset
 
-    elif pyxel.btn(pyxel.KEY_LEFT) and self.x > 0:
-      self.x = max(self.x - 2, 0)
+    if pyxel.btn(pyxel.KEY_RIGHT):
+      if self.x > (c.UNIT * 5 + x_offset):
+        x_offset += c.SPEED
+
+      self.x = self.x + c.SPEED
+    elif pyxel.btn(pyxel.KEY_LEFT):
+      self.x = max(self.x - c.SPEED, 0 + x_offset)
     
     # Lógica para el salto de Mario, funciona como un movimiento parabólico en el eje Y
     if not (self.isJump):
@@ -61,51 +62,92 @@ class Mario(Sprite):
 class Suelo(Sprite):
   def __init__(self, location):
     super().__init__(location, img_bank=0, uv=(32, 0), colkey=-1)
+    self.suelos = []
 
   # Método para rellenar la pantalla con bloques de suelo
   def generar_suelo(self):
-    self.suelo1 = [(i * c.UNIT - x_offset, int(c.BOARD_HEIGHT - c.UNIT * 1.5)) for i in range(c.UNIT * 4)]
-    self.suelo2 = [(i * c.UNIT - x_offset, int(c.BOARD_HEIGHT - c.UNIT * 0.5)) for i in range(c.UNIT * 4)]
-
-    for location in self.suelo1:
+    for location in c.SUELO:
       suelo = Suelo(location)
-      suelo.draw()
+      self.suelos.append(suelo)
     
-    for location in self.suelo2:
-      suelo = Suelo(location)
+  def dibujar_suelo(self):
+    for suelo in self.suelos:
       suelo.draw()
 
 
 class Bloque(Sprite):
   def __init__(self, location):
     super().__init__(location, img_bank=0, uv=(16, 0), colkey=-1)
+    self.bloques = []
 
-  # Método para rellenar la pantalla con bloques de suelo
+  # Método para colocar los bloques
   def generar_bloques(self):
-    altura = int(c.BOARD_HEIGHT - c.UNIT * 5.5)
-    self.bloques = [(c.UNIT * 17 - x_offset, altura), (c.UNIT * 20 - x_offset, altura),
-                    (c.UNIT * 21 - x_offset, altura), (c.UNIT * 22 - x_offset, altura),
-                    (c.UNIT * 23 - x_offset, altura), (c.UNIT * 24 - x_offset, altura)]
-
-    for location in self.bloques:
+    for location in c.BLOQUES:
       bloque = Bloque(location)
+      self.bloques.append(bloque)
+  
+  def dibujar_bloques(self):
+    for bloque in self.bloques:
       bloque.draw()
 
 class Tuberia(Sprite):
-  def __init__():
-    Sprite.__init__()
+  def __init__(self, location):
+    super().__init__(location, img_bank=0, uv=(109, 0))
+    self.tuberias = []
+  
+  # Método para colocar las tuberías
+  def generar_tuberias(self):
+    for location in c.TUBERIAS:
+      tuberia = Tuberia(location)
+      self.tuberias.append(tuberia)
+  
+  def dibujar_tuberias(self):
+    for tuberia in self.tuberias:
+      tuberia.draw()
 
 
+# Objeto que controla la interfaz del juego, incluyendo la puntuación y las monedas recogidas
 class Interfaz:
   def __init__(self):
     self.score = 0
-    self.time = 400
+    self.time = c.TIME
     self.coins = 0
+    self.counter = 0
+
+  def draw(self):
+    altura1 = c.UNIT * 1.5
+    altura2 = c.UNIT * 2
+
+    # Puntuación
+    pyxel.text(c.UNIT * 2, altura1, "MARIO", 7)
+    pyxel.text(c.UNIT * 2, altura2, f"{self.score:06d}", 7)
+
+    # Monedas
+    # pyxel.blt()
+    pyxel.text(c.UNIT * 5, altura2, "x " + f"{self.coins:02d}", 7)
+
+    # Nivel
+    pyxel.text(c.UNIT * 9, altura1, "WORLD", 7)
+    pyxel.text(c.UNIT * 9.3, altura2, "1-1", 7)
+
+    # Tiempo
+    pyxel.text(c.UNIT * 13, altura1, "TIME", 7)
+    pyxel.text(c.UNIT * 13.3, altura2, f"{self.time:03d}", 7)
+
+  # Método encargado del tiempo de ejecución del juego
+  def check_time(self):
+    self.counter += 1
+    # Un segundo equivale a 60 fotogramas
+    if self.counter % c.FPS == 0:
+      self.time -= 1
+
+    if self.time < 0:
+      self.time = c.TIME
+      return True
+    
+    return False
   
 
-  def draw_ui(self):
-    pass
-
-
-  def check_time(self):
-    pass
+  # Método llamado cuando Mario recoge una moneda
+  def add_coin(self):
+    self.coins += 1
