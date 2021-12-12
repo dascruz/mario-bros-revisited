@@ -1,7 +1,7 @@
 """ Archivo que contiene todos los objetos a usar en el videojuego
 """
 
-import pyxel
+import pyxel, random
 import constantes as c
 
 # Variable global utilizada para el movimiento de la cámara por el nivel
@@ -11,7 +11,7 @@ x_offset = 0
 # Clase principal que heredan todos los objetos gráficos del juego
 class Sprite:
   # Inicializamos la posición y cargamos el sprite correspondiente del banco de imágenes
-  def __init__(self, location, img_bank: int, uv: tuple, size=(c.UNIT, c.UNIT), colkey=0):
+  def __init__(self, location, img_bank: int, uv: tuple, size=(c.UNIT, c.UNIT), colkey=6):
     self.x = location[0]
     self.y = location[1]
     self.img_bank = img_bank
@@ -21,6 +21,16 @@ class Sprite:
     self.h = size[1]
     self.colkey = colkey
   
+  # Método para comprobar colisiones con objetos
+  def check_collision(self, objects):
+    # Colisión AABB. Source: https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
+    for object in objects:
+      if (self.x < object.x + object.w and self.x + self.w > object.x and
+        self.y < object.y + object.h and self.h + self.y > object.y):
+        return True
+    
+    return False
+
   # Método para dibujar en patalla el sprite
   def draw(self):
     pyxel.blt(self.x - x_offset, self.y, self.img_bank, self.u, self.v,
@@ -29,39 +39,75 @@ class Sprite:
 
 class Mario(Sprite):
   def __init__(self, location):
-    super().__init__(location, img_bank=0, uv=(0, 0))
+    super().__init__(location, img_bank=0, uv=(80, 0))
     self.lives = 3
-    self.jumpCount = c.JUMP_HEIGHT
-    self.isJump = False
+    self.jump_time = c.JUMP_HEIGHT
+    self.jump_active = False
   
   def move(self):
     # Lógica para el movimiento de Mario, comprobando que no se sale de los límites de la pantalla
+    # Movimiento horizontal con las teclas A y D
     global x_offset
 
-    if pyxel.btn(pyxel.KEY_RIGHT):
+    if pyxel.btn(pyxel.KEY_D):
       if self.x > (c.UNIT * 5 + x_offset):
         x_offset += c.SPEED
 
       self.x = self.x + c.SPEED
-    elif pyxel.btn(pyxel.KEY_LEFT):
+    elif pyxel.btn(pyxel.KEY_A):
       self.x = max(self.x - c.SPEED, 0 + x_offset)
     
     # Lógica para el salto de Mario, funciona como un movimiento parabólico en el eje Y
-    if not (self.isJump):
+    if not (self.jump_active):
       if pyxel.btn(pyxel.KEY_SPACE):
-        self.isJump = True
+        self.jump_active = True
     else: 
-      if self.jumpCount >= -c.JUMP_HEIGHT:
-        self.y -= (self.jumpCount * abs(self.jumpCount)) * 0.5
-        self.jumpCount -= 0.25
+      if self.jump_time >= -c.JUMP_HEIGHT:
+        self.y -= (self.jump_time * abs(self.jump_time)) * 0.5
+        self.jump_time -= 0.25
       else:
-        self.jumpCount = c.JUMP_HEIGHT
-        self.isJump = False
+        self.jump_time = c.JUMP_HEIGHT
+        self.jump_active = False
+
+
+class Enemigo(Sprite):
+  def __init__(self, location):
+    super().__init__(location, img_bank=0, uv=c.UV_GOOMBA)
+    self.enemigos = []
+    prob = random.uniform(0, 1)
+    if prob < 0.25:
+      self.u, self.v = c.UV_KOOPA
+      self.h = 23
+      self.tipo = "koopa"
+    else:
+      self.tipo = "goomba"
+  
+  def move(self):
+    for enemigo in self.enemigos:
+      enemigo.x -= c.ENEMY_SPEED
+
+      # El enemigo aparece en el cielo para añadir variedad al movimiento (puede caer encima de un bloque por ejemplo)
+      if enemigo.y + enemigo.h < c.UNIT * 14:
+        enemigo.y += c.VELOCITY
+
+      # Los enemigos desaparecen al cruzar el límite izquierdo de la pantalla
+      if enemigo.x < (x_offset - enemigo.w):
+        self.enemigos.remove(enemigo)
+
+  def generar_enemigos(self, frames):
+    # Los enemigos aparecen cada 3 segundos
+    if (frames % (c.FPS * 3) == 0) and len(self.enemigos) < 4:
+      enemigo = Enemigo(location=(c.UNIT * 20 + x_offset, c.UNIT * 4))
+      self.enemigos.append(enemigo)
+    
+  def dibujar_enemigos(self):
+    for enemigo in self.enemigos:
+      enemigo.draw()
 
 
 class Suelo(Sprite):
   def __init__(self, location):
-    super().__init__(location, img_bank=0, uv=(32, 0), colkey=-1)
+    super().__init__(location, img_bank=0, uv=c.UV_SUELO)
     self.suelos = []
 
   # Método para rellenar la pantalla con bloques de suelo
@@ -77,7 +123,7 @@ class Suelo(Sprite):
 
 class Bloque(Sprite):
   def __init__(self, location):
-    super().__init__(location, img_bank=0, uv=(16, 0), colkey=-1)
+    super().__init__(location, img_bank=0, uv=c.UV_BLOQUE_LADR)
     self.bloques = []
 
   # Método para colocar los bloques
@@ -92,7 +138,7 @@ class Bloque(Sprite):
 
 class Tuberia(Sprite):
   def __init__(self, location):
-    super().__init__(location, img_bank=0, uv=(109, 0))
+    super().__init__(location, img_bank=0, uv=c.UV_TUBERIA, size=(c.UNIT * 2, c.UNIT * 2))
     self.tuberias = []
   
   # Método para colocar las tuberías
@@ -104,6 +150,38 @@ class Tuberia(Sprite):
   def dibujar_tuberias(self):
     for tuberia in self.tuberias:
       tuberia.draw()
+
+
+class Arbusto(Sprite):
+  def __init__(self, location):
+    super().__init__(location, img_bank=0, uv=c.UV_ARBUSTO, size=(c.UNIT * 2, c.UNIT))
+    self.arbustos = []
+  
+  # Método para colocar las tuberías
+  def generar_arbustos(self):
+    for location in c.ARBUSTOS:
+      arbusto = Arbusto(location)
+      self.arbustos.append(arbusto)
+  
+  def dibujar_arbustos(self):
+    for arbusto in self.arbustos:
+      arbusto.draw()
+
+
+class Nube(Sprite):
+  def __init__(self, location):
+    super().__init__(location, img_bank=0, uv=c.UV_NUBE, size=(c.UNIT * 2, 23))
+    self.nubes = []
+  
+  # Método para colocar las tuberías
+  def generar_nubes(self):
+    for location in c.NUBES:
+      nube = Nube(location)
+      self.nubes.append(nube)
+  
+  def dibujar_nubes(self):
+    for nube in self.nubes:
+      nube.draw()
 
 
 # Objeto que controla la interfaz del juego, incluyendo la puntuación y las monedas recogidas
@@ -144,9 +222,8 @@ class Interfaz:
     if self.time < 0:
       self.time = c.TIME
       return True
-    
-    return False
-  
+    else:
+      return False
 
   # Método llamado cuando Mario recoge una moneda
   def add_coin(self):

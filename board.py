@@ -11,19 +11,26 @@ class Board:
     # Inciamos el motor Pyxel y cargamos el banco de imágenes
     pyxel.init(c.BOARD_WIDTH, c.BOARD_HEIGHT, caption=c.BOARD_NAME, fps=c.FPS)
     pyxel.load("assets/mario.pyxres")
-    pyxel.frame_count
 
     self.interfaz = clases.Interfaz()
 
     self.mario = clases.Mario(location=c.POS_MARIO)
-    self.suelos = clases.Suelo((0, 0))
+    self.suelos = clases.Suelo(location=c.POS_DEFAULT)
     self.suelos.generar_suelo()
 
-    self.bloques = clases.Bloque((0, 0))
+    self.enemigos = clases.Enemigo(location=c.POS_DEFAULT)
+
+    self.bloques = clases.Bloque(location=c.POS_DEFAULT)
     self.bloques.generar_bloques()
 
-    self.tuberias = clases.Tuberia((0, 0))
+    self.tuberias = clases.Tuberia(location=c.POS_DEFAULT)
     self.tuberias.generar_tuberias()
+
+    self.nubes = clases.Nube(location=c.POS_DEFAULT)
+    self.nubes.generar_nubes()
+
+    self.arbustos = clases.Arbusto(location=c.POS_DEFAULT)
+    self.arbustos.generar_arbustos()
 
     pyxel.run(self.update, self.draw)
 
@@ -32,28 +39,42 @@ class Board:
       pyxel.quit()
     
     self.mario.move()
+
     if self.mario.lives < 0:
       pyxel.quit()
+    
+    self.enemigos.generar_enemigos(pyxel.frame_count)
+    self.enemigos.move()
 
     if self.interfaz.check_time():
       self.mario.lives -= 1
 
   def draw(self):
     # Rellenamos la pantalla de color azul
-    pyxel.cls(12)
+    pyxel.cls(6)
+
     # Dibujamos la interfaz
     self.interfaz.draw()
-
-    # Dibujamos a Mario
-    self.mario.draw()
 
     # Dibujamos los objetos del juego
     self.suelos.dibujar_suelo()
     self.bloques.dibujar_bloques()
     self.tuberias.dibujar_tuberias()
+    self.nubes.dibujar_nubes()
+    self.arbustos.dibujar_arbustos()
 
+    # Dibujamos a los enemigos
+    self.enemigos.dibujar_enemigos()
 
-    pyxel.text(0, 0, str(self.mario.y), 1)
+    # Dibujamos a Mario
+    self.mario.draw()
+
+    # Código para debugging
+    if self.mario.check_collision(self.bloques.bloques):
+      text = "true"
+    else:
+      text = "false"
+    pyxel.text(0, 0, text, 1)
 
 
 Board()
