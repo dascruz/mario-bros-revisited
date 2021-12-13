@@ -1,3 +1,3 @@
-# Super Mario Bros recreation using Python
+# Super Mario Bros using Python
 
 Realizado por Daniel Sánchez de la Cruz

@@ -11,9 +11,9 @@ x_offset = 0
 # Clase principal que heredan todos los objetos gráficos del juego
 class Sprite:
   # Inicializamos la posición y cargamos el sprite correspondiente del banco de imágenes
-  def __init__(self, uv: tuple, img_bank=0, location=c.POS_DEFAULT, size=(c.UNIT, c.UNIT), colkey=6):
-    self.x = location[0]
-    self.y = location[1]
+  def __init__(self, uv: tuple, img_bank=0, posicion=c.POS_DEFAULT, size=(c.UNIT, c.UNIT), colkey=6):
+    self.x = posicion[0]
+    self.y = posicion[1]
     self.img_bank = img_bank
     self.u = uv[0]
     self.v = uv[1]
@@ -25,10 +25,26 @@ class Sprite:
   # Devuelve el objeto con el que colisionamos
   def check_collision(self, objects):
     # Colisión tipo AABB. Source: https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
+    top = self.y
+    bottom = self.y + self.h
+    left = self.x
+    right = self.x + abs(self.w)
     for object in objects:
-      if (self.x < object.x + object.w and self.x + self.w > object.x and
-        self.y < object.y + object.h and self.h + self.y > object.y):
-        return object
+      obj_top = object.y
+      obj_bottom = object.y + object.h
+      obj_left = object.x
+      obj_right = object.x + object.w
+      if (left < obj_right and right > obj_left and top < obj_bottom and bottom > obj_top):
+        # Colisión detectada. Ahora hay que ver por qué lado del objeto estamos colisionando utilizando la distancia mínima
+        distancia = min(abs(left - obj_right), abs(right - obj_left), abs(top - obj_bottom), abs(bottom - obj_top))
+        if distancia == abs(top - obj_bottom):
+          return (object, "bottom")
+        elif distancia == abs(bottom - obj_top):
+          return (object, "top")
+        elif distancia == abs(left - obj_right):
+          return (object, "right")
+        elif distancia == abs(right - obj_left):
+          return (object, "left")
     
     return None
 
@@ -56,66 +72,116 @@ class Generador():
 
 # Objeto encargado de las funciones de Mario
 class Mario(Sprite):
-  def __init__(self, location=c.POS_MARIO):
-    super().__init__(location=location, img_bank=0, uv=(80, 0))
+  def __init__(self, posicion=c.POS_MARIO):
+    super().__init__(posicion=posicion, uv=(80, 0))
     # Empezamos con 3 vidas
     self.lives = 3
 
     # Variables utilizadas para el salto de Mario
-    self.jump_time = c.JUMP_HEIGHT
+    self.jump_time = 0
     self.jump_active = False
+    self.grounded = False
   
   # Lógica para el movimiento de Mario, comprobando que no se sale de los límites de la pantalla
-  def move(self):
+  def move(self, colisiones):
     global x_offset
+    colision = self.check_collision(colisiones)
+    if colision != None:
+      obj_colision = colision[0]
+      direccion = colision[1]
 
     # Movimiento horizontal con las teclas A y D
     if pyxel.btn(pyxel.KEY_D):
-      if self.x > (c.UNIT * 5 + x_offset):
-        x_offset += c.SPEED
       self.w = c.UNIT
-      self.x = self.x + c.SPEED
+      if colision and direccion == "left":
+        self.x = obj_colision.x - self.w
+      else:
+        if self.x > (c.UNIT * 5 + x_offset):
+          x_offset += c.SPEED
+        self.x += c.SPEED
     elif pyxel.btn(pyxel.KEY_A):
       self.w = -c.UNIT
-      self.x = max(self.x - c.SPEED, 0 + x_offset)
-    
-    # Lógica para el salto de Mario, funciona como un movimiento parabólico en el eje Y
-    if not (self.jump_active):
-      if pyxel.btnp(pyxel.KEY_SPACE):
-        self.jump_active = True
-        self.u, self.v = c.UV_MARIO_SALTO
-    else: 
-      if self.jump_time >= -c.JUMP_HEIGHT:
-        self.y -= (self.jump_time * abs(self.jump_time)) * 0.5
-        self.jump_time -= 0.25
+      if colision and direccion == "right":
+        self.x = obj_colision.x + obj_colision.w
       else:
+        self.x = max(self.x - c.SPEED, 0 + x_offset)
+    
+    if (colision and direccion == "top") or self.y >= c.ALTURA_PERSONAJES:
+      if colision and isinstance(obj_colision, Enemigo):
+        if obj_colision.tipo == "goomba":
+          obj_colision.u, obj_colision.v = c.UV_GOOMBA_APLASTADO
+      self.grounded = True
+    else:
+      self.grounded = False   
+    
+    # Si Mario está pisando tierra, podemos saltar
+    if self.grounded:
+      if colision:
+        self.y = obj_colision.y - self.h
+      else:
+        self.y = c.ALTURA_PERSONAJES
+      self.u, self.v = c.UV_MARIO
+      self.jump_time = -0.1
+
+      if pyxel.btn(pyxel.KEY_SPACE):
         self.jump_time = c.JUMP_HEIGHT
-        self.jump_active = False
-        self.u, self.v = c.UV_MARIO
+        self.u, self.v = c.UV_MARIO_SALTO
+        self.y -= 0.1
+        self.grounded = False
+    else:
+      self.y = self.y - self.jump_time
+      self.jump_time -= 0.1
+      self.jump_time = self.jump_time
+
+      # Si Mario golpea con la cabeza un bloque de objeto, este se convierte en uno liso
+      if colision and direccion == "bottom":
+        self.y = obj_colision.y + obj_colision.h
+        self.jump_time = -2
+        if isinstance(obj_colision, BloqueObjeto):
+          obj_colision.u, obj_colision.v = c.UV_BLOQUE_LISO
 
 
+# Objeto encargado de la generación de enemigos
 class Enemigo(Sprite):
-  def __init__(self, location=c.POS_DEFAULT):
-    super().__init__(location=location, img_bank=0, uv=c.UV_GOOMBA)
+  def __init__(self, posicion=c.POS_DEFAULT):
+    super().__init__(posicion=posicion, uv=c.UV_GOOMBA)
     self.enemigos = []
+    # True indica movimiento hacia la izquierda, False hacia la derecha
+    self.direccion = True
 
     # Hay un 25% de probabilidades de que sea Koopa Troopa, y un 75% de que sea un Goomba
     prob = random.uniform(0, 1)
     if prob < 0.25:
       self.u, self.v = c.UV_KOOPA
       self.w = -c.UNIT
+      # El Koopa Troopa es más alto
       self.h = 23
       self.tipo = "koopa"
     else:
       self.tipo = "goomba"
   
   # Lógica del movimiento de los enemigos
-  def move(self):
+  def move(self, colisiones):
     for enemigo in self.enemigos:
-      enemigo.x -= c.ENEMY_SPEED
+      # Comprobamos colisiones
+      colision = enemigo.check_collision(colisiones)
+      if colision != None:
+        obj_colision = colision[0]
+        direccion = colision[1]
 
-      # El enemigo aparece en el cielo para añadir variedad al movimiento (puede caer encima de un bloque por ejemplo)
-      if enemigo.y + enemigo.h < c.UNIT * 14:
+      # Cambia de dirección si se choca con un objeto
+      if colision and (direccion == "left" or direccion == "right"):
+        enemigo.direccion = not enemigo.direccion
+        if enemigo.tipo == "koopa":
+          enemigo.w = -enemigo.w
+
+      # Movimiento del enemigo
+      if enemigo.direccion:
+        enemigo.x -= c.ENEMY_SPEED
+      else:
+        enemigo.x += c.ENEMY_SPEED
+
+      if enemigo.y + enemigo.h < c.ALTURA_PERSONAJES + c.UNIT:
         enemigo.y += c.VELOCITY
 
       # Los enemigos mueren al cruzar el límite izquierdo de la pantalla
@@ -124,48 +190,52 @@ class Enemigo(Sprite):
 
   def generar_enemigos(self, frames):
     # Los enemigos aparecen cada 3-5 segundos, con un máximo de 4 enemigos simultáneamente
+    # El enemigo aparece en el cielo para añadir variedad al movimiento (puede caer encima de un bloque por ejemplo)
     if (frames % (c.FPS * random.randint(3, 5)) == 0) and len(self.enemigos) < 4:
-      enemigo = Enemigo(location=(c.UNIT * 20 + x_offset, c.UNIT * 4))
+      enemigo = Enemigo(posicion=(c.UNIT * 20 + x_offset, c.UNIT * 3))
       self.enemigos.append(enemigo)
+    return self.enemigos
     
   def dibujar_enemigos(self):
     for enemigo in self.enemigos:
       enemigo.draw()
 
 
+# Objetos estáticos y decorativos
+
 class Suelo(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_SUELO)
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_SUELO)
 
 
 class BloqueLadrillo(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_BLOQUE_LADR)
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_BLOQUE_LADR)
 
 
 class BloqueObjeto(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_BLOQUE_OBJ)
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_BLOQUE_OBJ)
 
 
 class BloqueMoneda(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_BLOQUE_OBJ)
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_BLOQUE_OBJ)
 
 
 class Tuberia(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_TUBERIA, size=(c.UNIT * 2, c.UNIT * 2))
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_TUBERIA, size=(c.UNIT * 2, c.UNIT * 2))
 
 
 class Arbusto(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_ARBUSTO, size=(c.UNIT * 2, c.UNIT))
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_ARBUSTO, size=(c.UNIT * 2, c.UNIT))
 
 
 class Nube(Sprite):
-  def __init__(self, location):
-    super().__init__(location=location, uv=c.UV_NUBE, size=(c.UNIT * 2, 23))
+  def __init__(self, posicion):
+    super().__init__(posicion=posicion, uv=c.UV_NUBE, size=(c.UNIT * 2, 23))
 
 
 # Objeto que controla la interfaz del juego, incluyendo la puntuación y las monedas recogidas
@@ -197,10 +267,9 @@ class Interfaz:
     pyxel.text(c.UNIT * 13.3, altura2, f"{self.time:03d}", 7)
 
   # Método encargado del tiempo de ejecución del juego
-  def check_time(self):
-    self.counter += 1
+  def check_time(self, frames):
     # Un segundo equivale a 60 fotogramas
-    if self.counter % c.FPS == 0:
+    if frames % c.FPS == 0:
       self.time -= 1
 
     if self.time < 0:
@@ -209,6 +278,6 @@ class Interfaz:
     else:
       return False
 
-  # Método llamado cuando Mario recoge una moneda
-  def add_coin(self):
-    self.coins += 1
+  # # Método llamado cuando Mario recoge una moneda
+  # def add_coin(self):
+  #   self.coins += 1

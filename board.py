@@ -16,13 +16,14 @@ class Board:
     self.interfaz = clases.Interfaz()
     self.mario = clases.Mario()
     self.enemigos = clases.Enemigo()
-    self.suelos = clases.Generador.generar_objetos(self, c.SUELO, clases.Suelo)
+    self.suelo = clases.Generador.generar_objetos(self, c.SUELO, clases.Suelo)
     self.bloques_ladrillo = clases.Generador.generar_objetos(self, c.BLOQUES_LADRILLO, clases.BloqueLadrillo)
     self.bloques_objeto = clases.Generador.generar_objetos(self, c.BLOQUES_OBJETO, clases.BloqueObjeto)
     self.bloques_moneda = clases.Generador.generar_objetos(self, c.BLOQUES_MONEDA, clases.BloqueMoneda)
     self.tuberias = clases.Generador.generar_objetos(self, c.TUBERIAS, clases.Tuberia)
     self.nubes = clases.Generador.generar_objetos(self, c.NUBES, clases.Nube)
     self.arbustos = clases.Generador.generar_objetos(self, c.ARBUSTOS, clases.Arbusto)
+    self.colisiones = self.bloques_ladrillo + self.bloques_moneda + self.bloques_objeto + self.tuberias
 
     pyxel.run(self.update, self.draw)
 
@@ -32,7 +33,7 @@ class Board:
       pyxel.quit()
     
     # Comprobamos entrada del usuario en cada frame para mover a Mario
-    self.mario.move()
+    self.mario.move(self.colisiones)
 
     # EL juego se cierra automáticamente si nos quedamos sin vidas
     if self.mario.lives < 0:
@@ -40,10 +41,10 @@ class Board:
     
     # Los enemigos se generan cada 3-5 segundos y se dirigen hacia nosotros
     self.enemigos.generar_enemigos(pyxel.frame_count)
-    self.enemigos.move()
+    self.enemigos.move(self.colisiones)
 
     # Mario pierde una vida si acaba el tiempo
-    if self.interfaz.check_time():
+    if self.interfaz.check_time(pyxel.frame_count):
       self.mario.lives -= 1
 
   def draw(self):
@@ -54,7 +55,7 @@ class Board:
     self.interfaz.draw()
 
     # Dibujamos los objetos del juego
-    clases.Generador.dibujar_objetos(self, self.suelos)
+    clases.Generador.dibujar_objetos(self, self.suelo)
     clases.Generador.dibujar_objetos(self, self.bloques_ladrillo)
     clases.Generador.dibujar_objetos(self, self.bloques_objeto)
     clases.Generador.dibujar_objetos(self, self.bloques_moneda)
