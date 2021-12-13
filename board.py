@@ -12,40 +12,37 @@ class Board:
     pyxel.init(c.BOARD_WIDTH, c.BOARD_HEIGHT, caption=c.BOARD_NAME, fps=c.FPS)
     pyxel.load("assets/mario.pyxres")
 
+    # Inicializamos y generamos todos los objetos del juego
     self.interfaz = clases.Interfaz()
-
-    self.mario = clases.Mario(location=c.POS_MARIO)
-    self.suelos = clases.Suelo(location=c.POS_DEFAULT)
-    self.suelos.generar_suelo()
-
-    self.enemigos = clases.Enemigo(location=c.POS_DEFAULT)
-
-    self.bloques = clases.Bloque(location=c.POS_DEFAULT)
-    self.bloques.generar_bloques()
-
-    self.tuberias = clases.Tuberia(location=c.POS_DEFAULT)
-    self.tuberias.generar_tuberias()
-
-    self.nubes = clases.Nube(location=c.POS_DEFAULT)
-    self.nubes.generar_nubes()
-
-    self.arbustos = clases.Arbusto(location=c.POS_DEFAULT)
-    self.arbustos.generar_arbustos()
+    self.mario = clases.Mario()
+    self.enemigos = clases.Enemigo()
+    self.suelos = clases.Generador.generar_objetos(self, c.SUELO, clases.Suelo)
+    self.bloques_ladrillo = clases.Generador.generar_objetos(self, c.BLOQUES_LADRILLO, clases.BloqueLadrillo)
+    self.bloques_objeto = clases.Generador.generar_objetos(self, c.BLOQUES_OBJETO, clases.BloqueObjeto)
+    self.bloques_moneda = clases.Generador.generar_objetos(self, c.BLOQUES_MONEDA, clases.BloqueMoneda)
+    self.tuberias = clases.Generador.generar_objetos(self, c.TUBERIAS, clases.Tuberia)
+    self.nubes = clases.Generador.generar_objetos(self, c.NUBES, clases.Nube)
+    self.arbustos = clases.Generador.generar_objetos(self, c.ARBUSTOS, clases.Arbusto)
 
     pyxel.run(self.update, self.draw)
 
   def update(self):
+    # Tecla ESC para salir del juego
     if pyxel.btnp(pyxel.KEY_Q):
       pyxel.quit()
     
+    # Comprobamos entrada del usuario en cada frame para mover a Mario
     self.mario.move()
 
+    # EL juego se cierra automáticamente si nos quedamos sin vidas
     if self.mario.lives < 0:
       pyxel.quit()
     
+    # Los enemigos se generan cada 3-5 segundos y se dirigen hacia nosotros
     self.enemigos.generar_enemigos(pyxel.frame_count)
     self.enemigos.move()
 
+    # Mario pierde una vida si acaba el tiempo
     if self.interfaz.check_time():
       self.mario.lives -= 1
 
@@ -57,24 +54,19 @@ class Board:
     self.interfaz.draw()
 
     # Dibujamos los objetos del juego
-    self.suelos.dibujar_suelo()
-    self.bloques.dibujar_bloques()
-    self.tuberias.dibujar_tuberias()
-    self.nubes.dibujar_nubes()
-    self.arbustos.dibujar_arbustos()
+    clases.Generador.dibujar_objetos(self, self.suelos)
+    clases.Generador.dibujar_objetos(self, self.bloques_ladrillo)
+    clases.Generador.dibujar_objetos(self, self.bloques_objeto)
+    clases.Generador.dibujar_objetos(self, self.bloques_moneda)
+    clases.Generador.dibujar_objetos(self, self.tuberias)
+    clases.Generador.dibujar_objetos(self, self.nubes)
+    clases.Generador.dibujar_objetos(self, self.arbustos)
 
     # Dibujamos a los enemigos
     self.enemigos.dibujar_enemigos()
 
     # Dibujamos a Mario
     self.mario.draw()
-
-    # Código para debugging
-    if self.mario.check_collision(self.bloques.bloques):
-      text = "true"
-    else:
-      text = "false"
-    pyxel.text(0, 0, text, 1)
 
 
 Board()
