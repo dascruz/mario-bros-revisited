@@ -9,7 +9,7 @@ import constantes as c
 class Board:
   def __init__(self):
     # Inciamos el motor Pyxel y cargamos el banco de imágenes
-    pyxel.init(c.BOARD_WIDTH, c.BOARD_HEIGHT, caption=c.BOARD_NAME, fps=c.FPS)
+    pyxel.init(c.BOARD_WIDTH, c.BOARD_HEIGHT, title=c.BOARD_NAME, fps=c.FPS)
     pyxel.load("assets/mario.pyxres")
 
     # Inicializamos y generamos todos los objetos del juego
