@@ -1,5 +1,4 @@
 # Super Mario Bros Revisited
-#### Video Demo:  <URL HERE>
 
 ## Table of Contents
 
